@@ -1,0 +1,31 @@
+GOES-R Mission Requirements Document (MRD) - Sample
+
+MRD-001: System Performance Requirements
+The GOES-R system shall provide continuous weather and environmental monitoring of the Earth's Western Hemisphere with improved spatial, temporal, and spectral resolution compared to previous GOES missions.
+
+MRD-002: Advanced Baseline Imager Requirements  
+The ABI shall provide 16 spectral channels with spatial resolution of 0.5 km for visible channels, 1.0 km for near-infrared channels, and 2.0 km for infrared channels.
+
+MRD-003: Geostationary Lightning Mapper Requirements
+The GLM shall detect lightning activity with 70% detection efficiency during day and 90% detection efficiency during night conditions.
+
+MRD-004: Solar Ultraviolet Imager Requirements
+The SUVI shall provide full-disk solar images in 6 extreme ultraviolet wavelengths with spatial resolution of 1.25 arcseconds.
+
+MRD-005: Data Dissemination Requirements
+The system shall disseminate meteorological data products to users within 30 minutes of observation for routine products and within 5 minutes for severe weather products.
+
+MRD-006: Spacecraft Pointing Requirements
+The spacecraft shall maintain pointing accuracy of ±28 microradians (3-sigma) in both pitch and roll axes during normal imaging operations.
+
+MRD-007: System Availability Requirements
+The GOES-R system shall achieve 99% operational availability over any 30-day period, excluding planned maintenance periods.
+
+MRD-008: Ground System Processing Requirements
+The Ground System shall process ABI and GLM data into environmental data products using algorithms validated against reference datasets.
+
+MRD-009: Search and Rescue Requirements
+The system shall relay distress signals from emergency beacons and provide location accuracy within 5 kilometers for Search and Rescue operations.
+
+MRD-010: Magnetometer Requirements
+The magnetometer shall measure the space environment magnetic field with accuracy of 0.1 nanotesla in three orthogonal axes with 1-second temporal resolution.

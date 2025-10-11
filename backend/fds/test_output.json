@@ -1,0 +1,20 @@
+{
+  "extraction_date": "2025-09-19T11:47:31.899912",
+  "total_requirements": 1,
+  "requirements": [
+    {
+      "id": "0.5",
+      "title": "km for visible channels, 1",
+      "text": "km for visible channels, 1.0 km for near-infrared channels, and 2.0 km for infrared channels. MRD-003: Geostationary Lightning Mapper Requirements The GLM shall detect lightning activity with 70% detection efficiency during day and 90% detection efficiency during night conditions. MRD-004: Solar Ultraviolet Imager Requirements The SUVI shall provide full-disk solar images in 6 extreme ultraviolet wavelengths with spatial resolution of 1.25 arcseconds. MRD-005: Data Dissemination Requirements The system shall disseminate meteorological data products to users within 30 minutes of observation for routine products and within 5 minutes for severe weather products. MRD-006: Spacecraft Pointing Requirements The spacecraft shall maintain pointing accuracy of ±28 microradians (3-sigma) in both pitch and roll axes during normal imaging operations. MRD-007: System Availability Requirements The GOES-R system shall achieve 99% operational availability over any 30-day period, excluding planned maintenance periods.",
+      "category": "data",
+      "priority": "medium",
+      "source_page": 1,
+      "source_document": "test_requirements.txt",
+      "verification_method": "test",
+      "parent_section": "",
+      "tags": [
+        "accuracy"
+      ]
+    }
+  ]
+}
