@@ -2,10 +2,10 @@
 nixPkgs = ['nodejs-18_x']
 
 [phases.install]
-cmds = ['cd frontend && npm ci --prefer-offline --no-audit']
+cmds = ['npm run install']
 
 [phases.build]
-cmds = ['cd frontend && npm run build']
+cmds = ['npm run build']
 
 [start]
-cmd = 'cd frontend && npm start'
+cmd = 'npm start'
