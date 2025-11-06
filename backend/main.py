@@ -11,7 +11,7 @@ import os
 from dotenv import load_dotenv
 
 from app.config import get_settings
-from app.routers import pulse, impact, tasks, notes, knowledge, windows, ai, config as config_router, auth
+from app.routers import pulse, impact, tasks, notes, knowledge, windows, ai, config as config_router, auth, settings
 from app.database import init_db
 
 # Load environment variables
@@ -58,6 +58,7 @@ app.include_router(notes.router, prefix="/api", dependencies=[Depends(get_option
 app.include_router(knowledge.router, prefix="/api", dependencies=[Depends(get_optional_user)])
 app.include_router(windows.router, prefix="/api", dependencies=[Depends(get_optional_user)])
 app.include_router(ai.router, prefix="/api", dependencies=[Depends(get_optional_user)])
+app.include_router(settings.router, prefix="/api", dependencies=[Depends(get_optional_user)])
 app.include_router(config_router.router, prefix="/api")  # Config doesn't need auth
 
 if __name__ == "__main__":

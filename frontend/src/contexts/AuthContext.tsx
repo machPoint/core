@@ -182,6 +182,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(null);
       setUser(null);
       clearStoredAuth();
+      
+      // Redirect to login page
+      if (typeof window !== 'undefined') {
+        window.location.href = '/auth';
+      }
     }
   };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import CreateNoteDialog, { Note } from "@/components/CreateNoteDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,19 +25,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { formatDistanceToNow } from "date-fns";
 
-interface Note {
-  id: string;
-  title: string;
-  content: string;
-  tags: string[];
-  folder: string;
-  lastSynced: Date;
-  isSourced: boolean;
-  sourceType?: string;
-}
+// Note interface moved to CreateNoteDialog
 
 const mockNotes: Note[] = [
   {
@@ -60,8 +51,10 @@ const mockNotes: Note[] = [
   }
 ];
 
+const STORAGE_KEY = "core-se-notes";
+
 export default function NotesSection() {
-  const [notes, setNotes] = useState(mockNotes);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(notes[0]);
   const [searchQuery, setSearchQuery] = useState("");
   const [content, setContent] = useState(selectedNote?.content || "");
@@ -70,8 +63,63 @@ export default function NotesSection() {
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newNoteTitle, setNewNoteTitle] = useState("");
-  const [newNoteFolder, setNewNoteFolder] = useState("");
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
+
+  // Load notes from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        // Convert date strings back to Date objects
+        const notesWithDates = parsed.map((n: any) => ({
+          ...n,
+          lastSynced: new Date(n.lastSynced),
+          createdAt: new Date(n.createdAt),
+          updatedAt: new Date(n.updatedAt),
+        }));
+        setNotes(notesWithDates);
+        if (notesWithDates.length > 0) {
+          setSelectedNote(notesWithDates[0]);
+        }
+      } catch (e) {
+        console.error("Failed to parse stored notes", e);
+        setNotes(mockNotes);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(mockNotes));
+      }
+    } else {
+      setNotes(mockNotes);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(mockNotes));
+    }
+  }, []);
+
+  // Save to localStorage
+  useEffect(() => {
+    if (notes.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+    }
+  }, [notes]);
+
+  const handleNoteSaved = (note: Note) => {
+    setNotes((prev) => {
+      const existing = prev.find(n => n.id === note.id);
+      if (existing) {
+        // Update
+        return prev.map(n => n.id === note.id ? note : n);
+      } else {
+        // Create
+        return [note, ...prev];
+      }
+    });
+    setSelectedNote(note);
+    toast.success(editingNote ? "Note updated" : "Note created");
+    setEditingNote(null);
+  };
+
+  const handleEditNote = (note: Note) => {
+    setEditingNote(note);
+    setShowCreateModal(true);
+  };
 
   useEffect(() => {
     if (selectedNote) {
@@ -102,23 +150,6 @@ export default function NotesSection() {
     setIsEditing(false);
   };
 
-  const handleCreateNote = () => {
-    const newNote: Note = {
-      id: Date.now().toString(),
-      title: "Untitled Note",
-      content: "",
-      tags: [],
-      folder: "General",
-      lastSynced: new Date(),
-      isSourced: false
-    };
-
-    setNotes(prev => [newNote, ...prev]);
-    setSelectedNote(newNote);
-    setTitle("Untitled Note");
-    setContent("");
-    setIsEditing(true);
-  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Tab') {
@@ -306,47 +337,16 @@ export default function NotesSection() {
         )}
       </div>
 
-      {/* Create Note Modal */}
-      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="bg-card">
-          <DialogHeader>
-            <DialogTitle>Create New Note</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-foreground">Title</label>
-              <Input
-                value={newNoteTitle}
-                onChange={(e) => setNewNoteTitle(e.target.value)}
-                placeholder="Enter note title..."
-                className="mt-1 bg-background border-border"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground">Folder</label>
-              <select
-                value={newNoteFolder}
-                onChange={(e) => setNewNoteFolder(e.target.value)}
-                className="w-full mt-1 p-2 rounded border border-border bg-background text-foreground"
-              >
-                <option value="">Select a folder...</option>
-                <option value="Architecture">Architecture</option>
-                <option value="Requirements">Requirements</option>
-                <option value="Meeting Notes">Meeting Notes</option>
-                <option value="Ideas">Ideas</option>
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateNote}>
-              Create Note
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Create/Edit Note Dialog */}
+      <CreateNoteDialog
+        open={showCreateModal}
+        onOpenChange={(open) => {
+          setShowCreateModal(open);
+          if (!open) setEditingNote(null);
+        }}
+        onNoteSaved={handleNoteSaved}
+        editingNote={editingNote}
+      />
     </div>
   );
 }

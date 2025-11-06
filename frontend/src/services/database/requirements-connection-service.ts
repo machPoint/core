@@ -23,7 +23,7 @@ export interface ConnectionCreateRequest {
 }
 
 class RequirementsConnectionService {
-  private baseUrl = process.env.NEXT_PUBLIC_FDS_API_URL || 'http://localhost:8001';
+  private baseUrl = process.env.NEXT_PUBLIC_FDS_API_URL || 'http://localhost:4000';
 
   /**
    * Get all connections for a specific requirement

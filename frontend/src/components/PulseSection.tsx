@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import ActivityDetailDialog from "@/components/ActivityDetailDialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,10 +26,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useDataMode } from "@/contexts/DataModeContext";
+import { generateFakePulseItems, StreamingDataGenerator } from "@/lib/fakeDataGenerators";
 
 interface ActivityItem {
   id: string;
-  type: "commit" | "comment" | "document" | "meeting" | "notification";
+  type: "requirement" | "test_case" | "issue" | "ecn" | "email";
   title: string;
   description: string;
   timestamp: string;
@@ -38,60 +41,143 @@ interface ActivityItem {
   };
   source: string;
   isRead: boolean;
+  status?: string;
+  changeType?: string;
   metadata?: {
+    priority?: string;
+    affected_parts?: number;
+    document?: string;
+    recipients?: number;
     repository?: string;
     branch?: string;
     fileName?: string;
-    meetingType?: string;
     participants?: number;
+    [key: string]: any; // Allow additional metadata fields
   };
 }
 
-const mockActivities: ActivityItem[] = [
-  {
-    id: "1",
-    type: "commit",
-    title: "Updated authentication service",
-    description: "Implemented OAuth2 flow and session management",
-    timestamp: "2 hours ago",
-    user: { name: "Sarah Chen", avatar: "SC" },
-    source: "GitHub",
-    isRead: false,
-    metadata: { repository: "auth-service", branch: "main", fileName: "auth.ts" }
-  },
-  {
-    id: "2",
-    type: "document",
-    title: "API Documentation Updated",
-    description: "Added new endpoints for user management",
-    timestamp: "4 hours ago",
-    user: { name: "Mike Rodriguez", avatar: "MR" },
-    source: "Confluence",
-    isRead: true,
-    metadata: { fileName: "api-docs.md" }
-  },
-  {
-    id: "3",
-    type: "meeting",
-    title: "Sprint Planning Meeting",
-    description: "Discussed upcoming features and priorities",
-    timestamp: "1 day ago",
-    user: { name: "Alex Kim", avatar: "AK" },
-    source: "Zoom",
-    isRead: true,
-    metadata: { meetingType: "Sprint Planning", participants: 8 }
-  }
-];
+// Remove mock activities - we'll fetch from FDS
 
 export default function PulseSection() {
+  const { dataMode, isUsingFakeData, isStreaming } = useDataMode();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
-  const [activities] = useState(mockActivities);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityItem | null>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
 
-  const sources = ["GitHub", "Jira", "Confluence", "Slack", "Zoom", "Email"];
-  const types = ["commit", "comment", "document", "meeting", "notification"];
+  const sources = ["jama", "jira", "windchill", "email"];
+  const types = ["requirement", "test_case", "issue", "ecn", "email"];
+
+  // Fetch activities - respects data mode
+  useEffect(() => {
+    async function fetchActivities() {
+      try {
+        setIsLoading(true);
+        
+        let data;
+        
+        if (dataMode === 'real') {
+          // Fetch from real API
+          const response = await fetch('http://localhost:4000/mock/pulse?limit=50');
+          if (!response.ok) throw new Error('Failed to fetch activities');
+          data = await response.json();
+        } else {
+          // Use fake data (both static and streaming modes start with fake data)
+          data = generateFakePulseItems(50);
+        }
+        
+        // Transform pulse data to ActivityItem format
+        const transformed: ActivityItem[] = data.map((item: any) => ({
+          id: item.id,
+          type: item.artifact_ref.type,
+          title: item.artifact_ref.title,
+          description: item.change_summary,
+          timestamp: new Date(item.timestamp).toLocaleString(),
+          user: {
+            name: item.author || 'System',
+            avatar: (item.author || 'SY').split(' ').map((n: string) => n[0]).join('').substring(0, 2)
+          },
+          source: item.artifact_ref.source,
+          isRead: Math.random() > 0.3, // Random read status for demo
+          status: item.artifact_ref.status,
+          changeType: item.change_type,
+          metadata: item.metadata
+        }));
+        
+        setActivities(transformed);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching activities:', err);
+        
+        // Fallback to fake data on error
+        if (dataMode === 'real') {
+          setError('Failed to load from server. Using fake data instead.');
+          const fakeData = generateFakePulseItems(50);
+          const transformed: ActivityItem[] = fakeData.map((item: any) => ({
+            id: item.id,
+            type: item.artifact_ref.type,
+            title: item.artifact_ref.title,
+            description: item.change_summary,
+            timestamp: new Date(item.timestamp).toLocaleString(),
+            user: {
+              name: item.author || 'System',
+              avatar: (item.author || 'SY').split(' ').map((n: string) => n[0]).join('').substring(0, 2)
+            },
+            source: item.artifact_ref.source,
+            isRead: Math.random() > 0.3,
+            status: item.artifact_ref.status,
+            changeType: item.change_type,
+            metadata: item.metadata
+          }));
+          setActivities(transformed);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchActivities();
+    
+    // Set up streaming if in streaming mode
+    let streamGenerator: StreamingDataGenerator | null = null;
+    
+    if (isStreaming) {
+      streamGenerator = new StreamingDataGenerator();
+      streamGenerator.start((newItem) => {
+        const transformed: ActivityItem = {
+          id: newItem.id,
+          type: newItem.artifact_ref.type as any,
+          title: newItem.artifact_ref.title,
+          description: newItem.change_summary,
+          timestamp: new Date(newItem.timestamp).toLocaleString(),
+          user: {
+            name: newItem.author || 'System',
+            avatar: (newItem.author || 'SY').split(' ').map((n: string) => n[0]).join('').substring(0, 2)
+          },
+          source: newItem.artifact_ref.source,
+          isRead: false, // New items are unread
+          status: newItem.artifact_ref.status,
+          changeType: newItem.change_type,
+          metadata: {} // Streaming items don't have metadata
+        };
+        
+        setActivities((prev) => [transformed, ...prev].slice(0, 100)); // Keep last 100
+        toast.success(`New activity: ${transformed.title}`, { duration: 3000 });
+      }, 5000); // New item every 5 seconds
+    }
+    
+    // Cleanup
+    return () => {
+      if (streamGenerator) {
+        streamGenerator.stop();
+      }
+    };
+  }, [dataMode, isStreaming]);
 
   const filteredItems = useMemo(() => {
     return activities.filter(item => {
@@ -129,34 +215,32 @@ export default function PulseSection() {
 
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case "commit": return GitCommit;
-      case "comment": return MessageSquare;
-      case "document": return FileText;
-      case "meeting": return Calendar;
-      case "notification": return Bell;
+      case "requirement": return FileText;
+      case "test_case": return GitCommit;
+      case "issue": return MessageSquare;
+      case "ecn": return Bell;
+      case "email": return Mail;
       default: return FileText;
     }
   };
 
   const getSourceColor = (source: string) => {
     switch (source) {
-      case "GitHub": return "bg-card text-card-foreground border-border";
-      case "Jira": return "bg-card text-card-foreground border-border";
-      case "Confluence": return "bg-card text-card-foreground border-border";
-      case "Slack": return "bg-card text-card-foreground border-border";
-      case "Zoom": return "bg-card text-card-foreground border-border";
-      case "Email": return "bg-card text-card-foreground border-border";
+      case "jama": return "bg-blue-500/10 text-blue-500 border-blue-500/30";
+      case "jira": return "bg-orange-500/10 text-orange-500 border-orange-500/30";
+      case "windchill": return "bg-purple-500/10 text-purple-500 border-purple-500/30";
+      case "email": return "bg-green-500/10 text-green-500 border-green-500/30";
       default: return "bg-card text-card-foreground border-border";
     }
   };
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case "commit": return "bg-[#a3cae9]/30 text-[#395a7f] dark:bg-[#395a7f]/15 dark:text-[#a3cae9]";
-      case "comment": return "bg-[#6e9fc1]/20 text-[#395a7f] dark:bg-[#395a7f]/20 dark:text-[#6e9fc1]";
-      case "document": return "bg-[#e9ecee]/70 text-[#6e9fc1] dark:bg-[#6e9fc1]/10 dark:text-[#e9ecee]";
-      case "meeting": return "bg-[#e9ecee]/80 text-[#6e9fc1] dark:bg-[#6e9fc1]/10 dark:text-[#e9ecee]";
-      case "notification": return "bg-[#acacac]/20 text-[#acacac] dark:bg-[#acacac]/10 dark:text-[#e9ecee]";
+      case "requirement": return "bg-blue-500/10 text-blue-400";
+      case "test_case": return "bg-green-500/10 text-green-400";
+      case "issue": return "bg-red-500/10 text-red-400";
+      case "ecn": return "bg-yellow-500/10 text-yellow-400";
+      case "email": return "bg-purple-500/10 text-purple-400";
       default: return "bg-card text-card-foreground border-border";
     }
   };
@@ -219,19 +303,19 @@ export default function PulseSection() {
 
         {/* Stats */}
         <div className="p-4 border-b border-border">
-          <h4 className="text-xs font-medium text-muted-foreground mb-2">Today's Activity</h4>
+          <h4 className="text-xs font-medium text-muted-foreground mb-2">Activity Stats</h4>
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span>Total Events</span>
-              <Badge variant="secondary">24</Badge>
+              <Badge variant="secondary">{activities.length}</Badge>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span>Unread</span>
-              <Badge variant="secondary">3</Badge>
+              <Badge variant="secondary">{activities.filter(a => !a.isRead).length}</Badge>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span>Active Sources</span>
-              <Badge variant="secondary">6</Badge>
+              <span>Filtered</span>
+              <Badge variant="secondary">{filteredItems.length}</Badge>
             </div>
           </div>
         </div>
@@ -242,8 +326,19 @@ export default function PulseSection() {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border bg-card">
           <div>
-            <h2 className="text-lg font-semibold">Activity Pulse</h2>
-            <p className="text-sm text-muted-foreground">Real-time feed of all project activities</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold">Activity Pulse</h2>
+              {isUsingFakeData && (
+                <Badge variant="outline" className="text-xs">
+                  {isStreaming ? '🔴 Live Demo' : '📊 Demo Data'}
+                </Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {isStreaming 
+                ? 'Live streaming demo - new items every 5 seconds' 
+                : 'Real-time feed of all project activities'}
+            </p>
           </div>
           
           <div className="flex items-center gap-2">
@@ -261,7 +356,28 @@ export default function PulseSection() {
         {/* Activity Feed */}
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-4">
-            {filteredItems.map((item) => {
+            {/* Loading State */}
+            {isLoading && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                <p className="text-sm text-muted-foreground">Loading activity feed...</p>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && !isLoading && (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="text-4xl mb-4">⚠️</div>
+                <h3 className="text-lg font-medium mb-2 text-red-500">Error Loading Feed</h3>
+                <p className="text-muted-foreground text-sm mb-4">{error}</p>
+                <Button onClick={() => window.location.reload()} variant="outline" size="sm">
+                  Retry
+                </Button>
+              </div>
+            )}
+
+            {/* Activity Items */}
+            {!isLoading && !error && filteredItems.map((item) => {
               const Icon = getActivityIcon(item.type);
               const isExpanded = expandedItems.includes(item.id);
               
@@ -300,7 +416,16 @@ export default function PulseSection() {
                         </div>
                         
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-6 w-6 p-0"
+                            onClick={() => {
+                              setSelectedActivity(item);
+                              setShowDetailDialog(true);
+                            }}
+                            title="View details"
+                          >
                             <Eye className="w-3 h-3" />
                           </Button>
                           <Button 
@@ -355,7 +480,7 @@ export default function PulseSection() {
               );
             })}
 
-            {filteredItems.length === 0 && (
+            {!isLoading && !error && filteredItems.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="text-4xl mb-4">📊</div>
                 <h3 className="text-lg font-medium mb-2">No activities found</h3>
@@ -370,6 +495,13 @@ export default function PulseSection() {
           </div>
         </ScrollArea>
       </div>
+
+      {/* Activity Detail Dialog */}
+      <ActivityDetailDialog
+        activity={selectedActivity}
+        open={showDetailDialog}
+        onOpenChange={setShowDetailDialog}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Toaster } from "sonner";
 import { ChevronDown, ChevronRight, Folder, Hash, NotepadText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,9 @@ import KnowledgeAgentsSection from "@/components/KnowledgeAgentsSection";
 import AdminSection from "@/components/AdminSection";
 import TestSection from "@/components/TestSection";
 import DataEngineSection from "@/components/DataEngineSection";
+import RelationshipsSection from "@/components/RelationshipsSection";
+import AgentsSection from "@/components/AgentsSection";
+import SystemAdminSection from "@/components/SystemAdminSection";
 
 // Generate mock context data
 function generateContextData() {
@@ -157,6 +161,7 @@ function generateNotesData() {
 }
 
 function PageContent() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("pulse");
   const [leftNavCollapsed, setLeftNavCollapsed] = useState(false);
   const [contextPanelCollapsed, setContextPanelCollapsed] = useState(false);
@@ -170,6 +175,7 @@ function PageContent() {
   const foldersData = generateFoldersData();
   const tagsData = generateTagsData();
   const notesData = generateNotesData();
+
 
   const renderActiveSection = () => {
     switch (activeTab) {
@@ -187,6 +193,8 @@ function PageContent() {
         return <TraceImpactSection />;
       case "impact":
         return <TraceImpactSection />;
+      case "relationships":
+        return <RelationshipsSection />;
       case "knowledge":
         return <KnowledgeAgentsSection />;
       case "tasks":
@@ -196,7 +204,9 @@ function PageContent() {
       case "data-engine":
         return <DataEngineSection />;
       case "agents":
-        return <KnowledgeAgentsSection />;
+        return <AgentsSection />;
+      case "system-admin":
+        return <SystemAdminSection />;
       default:
         return <PulseSection />;
     }
@@ -220,7 +230,7 @@ function PageContent() {
       <div className="flex-1 overflow-hidden">
         <PanelGroup direction="horizontal" className="h-full">
           {/* Left Panel Stack - Navigation + Folders + Tags + Notes */}
-          <Panel defaultSize={25} minSize={15} maxSize={40} className="bg-[var(--color-left-panel)] border-r border-border flex flex-col">
+          <Panel defaultSize={12} minSize={10} maxSize={40} className="bg-[var(--color-left-panel)] border-r border-border flex flex-col">
           {/* Navigation Panel */}
           <div className="border-b border-border/50">
             <div className="flex items-center justify-between p-4">

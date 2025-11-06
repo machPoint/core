@@ -48,9 +48,9 @@ export function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
 
   // Demo users for easy testing
   const demoUsers = [
-    { username: 'admin', password: 'admin123', role: 'Administrator' },
-    { username: 'influencer', password: 'influencer123', role: 'Influencer' },
-    { username: 'consumer', password: 'consumer123', role: 'Consumer' },
+    { username: 'admin', password: 'admin123', role: 'Admin (Sarah Chen)' },
+    { username: 'sys_engineer', password: 'engineer123', role: 'Systems Engineer (Mike Rodriguez)' },
+    { username: 'analyst', password: 'analyst123', role: 'Analyst (Alex Kim)' },
   ];
 
   const fillDemoUser = (username: string, password: string) => {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import VisualEditsMessenger from "../visual-edits/VisualEditsMessenger";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { DataModeProvider } from "@/contexts/DataModeContext";
 import Script from "next/script";
 
 export const metadata: Metadata = {
@@ -28,7 +29,9 @@ export default function RootLayout({
           data-custom-data='{"appName": "YourApp", "version": "1.0.0", "greeting": "hi"}'
         />
         <AuthProvider>
-          {children}
+          <DataModeProvider>
+            {children}
+          </DataModeProvider>
         </AuthProvider>
         <VisualEditsMessenger />
       </body>

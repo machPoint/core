@@ -13,7 +13,9 @@ import {
   Bot, 
   Settings, 
   TestTube,
-  Database 
+  Database,
+  Monitor,
+  GitBranch
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,12 +33,14 @@ const navItems = [
   { id: "requirements", label: "Requirements", icon: FileCheck },
   { id: "trace", label: "Trace Graph", icon: Network },
   { id: "impact", label: "Impact Analysis", icon: TrendingUp },
+  { id: "relationships", label: "Relationships", icon: GitBranch },
   { id: "verification", label: "Verification", icon: Shield },
   { id: "design", label: "Interfaces", icon: Palette },
   { id: "test", label: "Test", icon: TestTube },
   { id: "data-engine", label: "Data Engine", icon: Database },
   { id: "knowledge", label: "Library", icon: Brain },
   { id: "agents", label: "Agents", icon: Bot },
+  { id: "system-admin", label: "System Admin", icon: Monitor },
 ];
 
 export default function LeftNav({ activeTab, onTabChange, className }: LeftNavProps) {

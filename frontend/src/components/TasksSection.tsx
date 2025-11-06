@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import CreateTaskDialog, { Task } from "@/components/CreateTaskDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -22,17 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  status: "todo" | "in-progress" | "completed";
-  priority: "low" | "medium" | "high";
-  assignee: string;
-  dueDate: string;
-  tags: string[];
-  project: string;
-}
+// Task interface moved to CreateTaskDialog for sharing
 
 const mockTasks: Task[] = [
   {
@@ -70,12 +61,52 @@ const mockTasks: Task[] = [
   }
 ];
 
+const STORAGE_KEY = "core-se-tasks";
+
 export default function TasksSection() {
-  const [tasks, setTasks] = useState(mockTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "todo" | "in-progress" | "completed">("all");
-  const [filterPriority, setFilterPriority] = useState<"all" | "low" | "medium" | "high">("all");
+  const [filterPriority, setFilterPriority] = useState<"all" | "low" | "medium" | "high" | "critical">("all");
   const [sortBy, setSortBy] = useState<"dueDate" | "priority" | "status">("dueDate");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+
+  // Load tasks from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setTasks(parsed);
+      } catch (e) {
+        console.error("Failed to parse stored tasks", e);
+        // Initialize with mock data if parsing fails
+        setTasks(mockTasks);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(mockTasks));
+      }
+    } else {
+      // First time - use mock data
+      setTasks(mockTasks);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(mockTasks));
+    }
+  }, []);
+
+  // Save to localStorage whenever tasks change
+  useEffect(() => {
+    if (tasks.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    }
+  }, [tasks]);
+
+  const handleTaskCreated = (newTask: Task) => {
+    setTasks((prev) => [newTask, ...prev]);
+    toast.success("Task created successfully");
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    setTasks((prev) => prev.filter(t => t.id !== taskId));
+    toast.success("Task deleted");
+  };
 
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -132,7 +163,7 @@ export default function TasksSection() {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-lg font-semibold">Tasks</h2>
-          <Button size="sm" className="h-8">
+          <Button size="sm" className="h-8" onClick={() => setShowCreateDialog(true)}>
             <Plus className="w-4 h-4 mr-1" />
             New Task
           </Button>
@@ -333,6 +364,13 @@ export default function TasksSection() {
           </div>
         </ScrollArea>
       </div>
+
+      {/* Create Task Dialog */}
+      <CreateTaskDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onTaskCreated={handleTaskCreated}
+      />
     </div>
   );
 }

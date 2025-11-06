@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Fake Data Service started successfully',
       processId: fdsProcess.pid?.toString(),
-      port: 8001
+      port: 4000
     });
 
   } catch (error) {

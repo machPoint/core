@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     
     // Check if FDS is running
     let healthCheck;
-    const fdsUrls = ['http://127.0.0.1:8001', 'http://localhost:8001'];
+    const fdsUrls = ['http://127.0.0.1:4000', 'http://localhost:4000'];
     let lastError = null;
     
     for (const fdsUrl of fdsUrls) {
@@ -51,25 +51,24 @@ export async function GET(request: NextRequest) {
     const fdsBaseUrl = healthCheck.url.replace('/health', '');
     console.log(`Using FDS base URL: ${fdsBaseUrl}`);
     
-    // Build query parameters for FDS backend
-    const params = new URLSearchParams({
-      limit: limit,
-    });
-    
-    // Note: FDS backend doesn't support offset/search yet, but supports filtering
-    if (category) params.append('category', category);
-
-    // Fetch from the FDS admin API which has access to database requirements
-    const response = await fetch(`${fdsBaseUrl}/mock/admin/requirements?${params.toString()}`);
+    // Fetch from the FDS Jama endpoint which has mock requirements data
+    // Note: Endpoint returns 50 items by default, no parameters needed
+    const response = await fetch(`${fdsBaseUrl}/mock/jama/items`);
     
     if (!response.ok) {
       throw new Error(`FDS responded with status: ${response.status}`);
     }
 
-    const data = await response.json();
+    const jamaItems = await response.json();
     
-    // Apply search filter on frontend if needed (since backend may not support it yet)
-    let filteredRequirements = data.requirements || [];
+    // Apply category filter if provided
+    let filteredRequirements = Array.isArray(jamaItems) ? jamaItems : [];
+    if (category) {
+      filteredRequirements = filteredRequirements.filter((req: any) => 
+        req.document_key?.toLowerCase().includes(category.toLowerCase()) ||
+        req.fields?.certification_basis?.toLowerCase().includes(category.toLowerCase())
+      );
+    }
     
     if (search) {
       const searchLower = search.toLowerCase();
@@ -85,23 +84,23 @@ export async function GET(request: NextRequest) {
     const endIndex = startIndex + parseInt(limit);
     const paginatedRequirements = filteredRequirements.slice(startIndex, endIndex);
     
-    // Transform the data to match the frontend interface
+    // Transform the Jama data to match the frontend interface
     const requirements = paginatedRequirements.map((req: any) => ({
-      id: req.id || req.requirement_id,
-      title: req.title || req.requirement_id,
+      id: req.id || req.global_id,
+      title: req.name || req.global_id,
       type: "requirement" as const,
-      status: req.status === "active" ? "active" : 
-              req.status === "completed" ? "completed" : "pending",
-      lastUpdated: req.extracted_at ? new Date(req.extracted_at).toLocaleString() : "Unknown",
-      owner: req.metadata?.owner || "System",
-      tags: req.tags || [req.category || "goes-r"].filter(Boolean),
-      category: req.category || "system",
-      priority: req.priority || "medium",
-      verification_method: req.verification_method,
-      text: req.text,
-      source_document: req.document_id,
-      source_page: req.source_page,
-      confidence: req.extraction_confidence
+      status: req.status === "approved" ? "active" : 
+              req.status === "validated" ? "completed" : "pending",
+      lastUpdated: req.modified_date ? new Date(req.modified_date).toLocaleString() : "Unknown",
+      owner: req.modified_by || req.created_by || "System",
+      tags: [req.document_key, req.fields?.safety_level, req.fields?.certification_basis].filter(Boolean),
+      category: req.document_key || "system",
+      priority: req.fields?.priority || "medium",
+      verification_method: req.fields?.verification_method,
+      text: req.description,
+      source_document: req.document_key,
+      source_page: undefined,
+      confidence: undefined
     })) || [];
 
     return NextResponse.json({

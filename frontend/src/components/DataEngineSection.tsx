@@ -56,7 +56,7 @@ interface MockDataControl {
 export default function DataEngineSection() {
   const [engineStatus, setEngineStatus] = useState<DataEngineStatus>({
     isRunning: false,
-    port: 8001,
+    port: 4000,
     uptime: undefined,
     lastDataGeneration: undefined,
     totalRequests: 0
@@ -122,14 +122,14 @@ export default function DataEngineSection() {
       setError(null);
       
       const startTime = Date.now();
-      const response = await fetch('http://localhost:8001/health');
+      const response = await fetch('http://localhost:4000/health');
       const endTime = Date.now();
       
       if (response.ok) {
         const data = await response.json();
         setEngineStatus({
           isRunning: true,
-          port: 8001,
+          port: 4000,
           uptime: "Running",
           lastDataGeneration: new Date().toLocaleString(),
           totalRequests: (engineStatus.totalRequests || 0) + 1
@@ -154,10 +154,10 @@ export default function DataEngineSection() {
     try {
       // Fetch sample data from different endpoints to get counts
       const [jamaRes, jiraRes, windchillRes, emailRes] = await Promise.all([
-        fetch('http://localhost:8001/mock/jama/items?size=1'),
-        fetch('http://localhost:8001/mock/jira/issues?size=1'),
-        fetch('http://localhost:8001/mock/windchill/parts?size=1'),
-        fetch('http://localhost:8001/mock/email/messages')
+        fetch('http://localhost:4000/mock/jama/items?size=1'),
+        fetch('http://localhost:4000/mock/jira/issues?size=1'),
+        fetch('http://localhost:4000/mock/windchill/parts?size=1'),
+        fetch('http://localhost:4000/mock/email/messages')
       ]);
 
       // For now, use mock counts since we don't have total count endpoints
@@ -180,7 +180,7 @@ export default function DataEngineSection() {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch('http://localhost:8001/mock/admin/seed', {
+      const response = await fetch('http://localhost:4000/mock/admin/seed', {
         method: 'POST'
       });
       
@@ -307,7 +307,7 @@ export default function DataEngineSection() {
     try {
       setIsLoading(true);
       const startTime = Date.now();
-      const response = await fetch(`http://localhost:8001${endpoint}?size=5`);
+      const response = await fetch(`http://localhost:4000${endpoint}?size=5`);
       const endTime = Date.now();
       
       if (response.ok) {

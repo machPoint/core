@@ -36,6 +36,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useDataMode, DataMode } from "@/contexts/DataModeContext";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface SystemMetric {
   id: string;
@@ -135,6 +138,7 @@ interface FDSStatus {
 }
 
 export default function AdminSection() {
+  const { dataMode, setDataMode, isUsingFakeData, isStreaming } = useDataMode();
   const [activeTab, setActiveTab] = useState<"dashboard" | "users" | "system" | "security" | "data">("dashboard");
   const [searchQuery, setSearchQuery] = useState("");
   const [metrics, setMetrics] = useState(mockSystemMetrics);
@@ -165,7 +169,7 @@ export default function AdminSection() {
   const seedFakeData = async () => {
     setIsSeeding(true);
     try {
-      const response = await fetch('http://localhost:8001/mock/admin/seed', {
+      const response = await fetch('http://localhost:4000/mock/admin/seed', {
         method: 'POST',
       });
       
@@ -188,7 +192,7 @@ export default function AdminSection() {
         throw new Error('Failed to seed data');
       }
     } catch (error) {
-      toast.error("Failed to seed fake data. Make sure FDS is running on port 8001.");
+      toast.error("Failed to seed fake data. Make sure FDS is running on port 4000.");
     } finally {
       setIsSeeding(false);
     }
@@ -196,7 +200,7 @@ export default function AdminSection() {
 
   const checkFDSHealth = async () => {
     try {
-      const response = await fetch('http://localhost:8001/health');
+      const response = await fetch('http://localhost:4000/health');
       const isHealthy = response.ok;
       setFdsStatus(prev => ({ ...prev, isRunning: isHealthy }));
       return isHealthy;
@@ -369,9 +373,122 @@ export default function AdminSection() {
 
   const renderDataManagement = () => (
     <div className="space-y-6">
-      {/* FDS Status */}
+      {/* Data Mode Selector */}
       <div>
-        <h3 className="text-lg font-medium mb-4">Fake Data Service Status</h3>
+        <h3 className="text-lg font-medium mb-4">Data Source Mode</h3>
+        <div className="bg-card rounded-lg border border-border p-6">
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Choose how the application retrieves data. Switch between real server connections or demo modes without server dependencies.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Real Data Mode */}
+              <button
+                onClick={() => {
+                  setDataMode('real');
+                  toast.success('Switched to Real Data mode - connecting to OPAL and FDS servers');
+                }}
+                className={cn(
+                  "p-4 rounded-lg border-2 transition-all text-left",
+                  dataMode === 'real'
+                    ? "border-[#6e9fc1] bg-[#6e9fc1]/10"
+                    : "border-border hover:border-[#6e9fc1]/50"
+                )}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Server className="w-5 h-5 text-[#6e9fc1]" />
+                  <h4 className="font-semibold">Real Data</h4>
+                  {dataMode === 'real' && (
+                    <Badge className="ml-auto bg-[#6e9fc1] text-white">Active</Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Connect to OPAL MCP Server and FDS. Requires both servers running.
+                </p>
+              </button>
+
+              {/* Static Fake Data Mode */}
+              <button
+                onClick={() => {
+                  setDataMode('fake-static');
+                  toast.success('Switched to Static Fake Data mode - using pre-generated demo data');
+                }}
+                className={cn(
+                  "p-4 rounded-lg border-2 transition-all text-left",
+                  dataMode === 'fake-static'
+                    ? "border-[#a3cae9] bg-[#a3cae9]/10"
+                    : "border-border hover:border-[#a3cae9]/50"
+                )}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Database className="w-5 h-5 text-[#a3cae9]" />
+                  <h4 className="font-semibold">Static Fake Data</h4>
+                  {dataMode === 'fake-static' && (
+                    <Badge className="ml-auto bg-[#a3cae9] text-white">Active</Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Use pre-generated fake data. No server connection needed.
+                </p>
+              </button>
+
+              {/* Streaming Fake Data Mode */}
+              <button
+                onClick={() => {
+                  setDataMode('fake-streaming');
+                  toast.success('Switched to Streaming Fake Data mode - live updates enabled');
+                }}
+                className={cn(
+                  "p-4 rounded-lg border-2 transition-all text-left",
+                  dataMode === 'fake-streaming'
+                    ? "border-[#395a7f] bg-[#395a7f]/10"
+                    : "border-border hover:border-[#395a7f]/50"
+                )}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="w-5 h-5 text-[#395a7f]" />
+                  <h4 className="font-semibold">Streaming Fake Data</h4>
+                  {dataMode === 'fake-streaming' && (
+                    <Badge className="ml-auto bg-[#395a7f] text-white">Active</Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Fake data with live streaming updates. Perfect for demos.
+                </p>
+              </button>
+            </div>
+
+            {/* Current Mode Info */}
+            <div className="pt-4 border-t border-border">
+              <div className="flex items-center gap-2">
+                <div className={cn(
+                  "w-2 h-2 rounded-full",
+                  dataMode === 'real' ? "bg-[#6e9fc1]" : 
+                  dataMode === 'fake-static' ? "bg-[#a3cae9]" : "bg-[#395a7f]"
+                )} />
+                <p className="text-sm font-medium">
+                  Current Mode: {
+                    dataMode === 'real' ? 'Real Data (Server Connected)' :
+                    dataMode === 'fake-static' ? 'Static Fake Data (Offline Demo)' :
+                    'Streaming Fake Data (Live Demo)'
+                  }
+                </p>
+              </div>
+              {isUsingFakeData && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  ⚠️ Running in demo mode - no server connection required. All data is simulated.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* FDS Status - Only show when in real mode */}
+      {dataMode === 'real' && (
+        <div>
+          <h3 className="text-lg font-medium mb-4">Fake Data Service Status</h3>
         <div className="bg-card rounded-lg border border-border p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -385,7 +502,7 @@ export default function AdminSection() {
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {fdsStatus.isRunning 
-                    ? "Fake Data Service is operational on port 8001"
+                    ? "Fake Data Service is operational on port 4000"
                     : "Cannot connect to Fake Data Service"
                   }
                 </p>
@@ -403,9 +520,11 @@ export default function AdminSection() {
             </p>
           )}
         </div>
-      </div>
+        </div>
+      )}
 
-      {/* Data Statistics */}
+      {/* Data Statistics - Only show when in real mode */}
+      {dataMode === 'real' && (
       <div>
         <h3 className="text-lg font-medium mb-4">Current Dataset</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -432,8 +551,10 @@ export default function AdminSection() {
           })}
         </div>
       </div>
+      )}
 
-      {/* Data Management Actions */}
+      {/* Data Management Actions - Only show when in real mode */}
+      {dataMode === 'real' && (
       <div>
         <h3 className="text-lg font-medium mb-4">Data Management</h3>
         <div className="bg-card rounded-lg border border-border p-6">
@@ -480,7 +601,7 @@ export default function AdminSection() {
             
             <Button 
               variant="outline"
-              onClick={() => window.open('http://localhost:8001/docs', '_blank')}
+              onClick={() => window.open('http://localhost:4000/docs', '_blank')}
               disabled={!fdsStatus.isRunning}
               className="h-auto p-4 flex flex-col items-center gap-2"
             >
@@ -493,8 +614,10 @@ export default function AdminSection() {
           </div>
         </div>
       </div>
+      )}
 
-      {/* Data Generation Settings */}
+      {/* Data Generation Settings - Only show when in real mode */}
+      {dataMode === 'real' && (
       <div>
         <h3 className="text-lg font-medium mb-4">Generation Settings</h3>
         <div className="bg-card rounded-lg border border-border p-6">
@@ -526,6 +649,7 @@ export default function AdminSection() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 

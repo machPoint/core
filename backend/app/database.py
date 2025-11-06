@@ -83,6 +83,41 @@ class RequirementDocumentDB(Base):
     requirements = relationship("RequirementDB", back_populates="document", cascade="all, delete-orphan")
 
 
+class UserSettingsDB(Base):
+    """SQLAlchemy model for user settings"""
+    __tablename__ = "user_settings"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, unique=True, nullable=False, index=True)
+    
+    # AI Prompt Settings (stored as JSON)
+    domain_focus = Column(JSON, default=lambda: ["interfaces", "electrical"])
+    response_style = Column(String, default="detailed")
+    analysis_depth = Column(String, default="standard")
+    custom_system_prompt = Column(Text, default="")
+    relationship_prompt = Column(Text, default="")
+    impact_prompt = Column(Text, default="")
+    
+    # Display Settings
+    theme = Column(String, default="dark")
+    density = Column(String, default="comfortable")
+    animations = Column(Boolean, default=True)
+    
+    # Notification Settings
+    email_notifications = Column(Boolean, default=True)
+    push_notifications = Column(Boolean, default=True)
+    pulse_updates = Column(Boolean, default=True)
+    task_reminders = Column(Boolean, default=True)
+    
+    # General Settings
+    timezone = Column(String, default="UTC-8")
+    language = Column(String, default="en")
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class RequirementDB(Base):
     """SQLAlchemy model for extracted requirements"""
     __tablename__ = "requirements"

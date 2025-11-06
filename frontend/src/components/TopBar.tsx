@@ -1,12 +1,20 @@
 "use client";
 
-import { Search, ChevronRight, User, Sun, Moon, Settings, LogIn, LogOut } from "lucide-react";
+import { Search, ChevronRight, User, Sun, Moon, Settings, LogIn, LogOut, Bell, HelpCircle, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/hooks/use-theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Breadcrumb {
   id: string;
@@ -90,38 +98,30 @@ export default function TopBar({
         </form>
       </div>
 
-      {/* Right side - User info, Admin, Theme toggle and Auth */}
+      {/* Right side - Notifications, Theme toggle, User menu */}
       <div className="flex items-center space-x-3">
-        {/* User Info */}
-        {isAuthenticated && user && (
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-[var(--color-text-primary)] font-medium">
-              {user.full_name}
-            </span>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(user.role)}`}>
-              {user.role.toUpperCase()}
-            </span>
-          </div>
-        )}
-        
-        {/* Admin Settings - only show for admins */}
-        {hasRole('admin') && (
+        {/* Notifications */}
+        {isAuthenticated && (
           <Button
             variant="ghost"
             size="icon"
-            onClick={onAdminClick}
-            className="h-9 w-9 text-[var(--color-text-primary)] hover:bg-[var(--color-main-panel)]"
-            title="Admin Settings"
+            onClick={() => router.push('/notifications')}
+            className="h-9 w-9 text-[var(--color-text-primary)] hover:bg-[var(--color-main-panel)] relative"
+            title="Notifications"
           >
-            <Settings className="h-4 w-4" />
+            <Bell className="h-4 w-4" />
+            {/* Notification badge */}
+            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
           </Button>
         )}
         
+        {/* Theme Toggle */}
         <Button
           variant="ghost"
           size="icon"
           onClick={toggleTheme}
           className="h-9 w-9 text-[var(--color-text-primary)] hover:bg-[var(--color-main-panel)]"
+          title="Toggle theme"
         >
           {theme === 'dark' ? (
             <Sun className="h-4 w-4" />
@@ -130,20 +130,67 @@ export default function TopBar({
           )}
         </Button>
         
-        {/* Auth Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleAuthAction}
-          className="h-9 w-9 text-[var(--color-text-primary)] hover:bg-[var(--color-main-panel)]"
-          title={isAuthenticated ? 'Sign Out' : 'Sign In'}
-        >
-          {isAuthenticated ? (
-            <LogOut className="h-4 w-4" />
-          ) : (
-            <LogIn className="h-4 w-4" />
-          )}
-        </Button>
+        {/* User Menu */}
+        {isAuthenticated && user ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="flex items-center space-x-2 h-9 px-3 text-[var(--color-text-primary)] hover:bg-[var(--color-main-panel)]"
+              >
+                <User className="h-4 w-4" />
+                <span className="text-sm font-medium hidden md:inline">{user.full_name}</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(user.role)} hidden lg:inline`}>
+                  {user.role.toUpperCase()}
+                </span>
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium">{user.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => router.push('/profile')}>
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/settings')}>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+              {hasRole('admin') && (
+                <DropdownMenuItem onClick={onAdminClick}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Admin Panel</span>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => router.push('/help')}>
+                <HelpCircle className="mr-2 h-4 w-4" />
+                <span>Help & Support</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleAuthAction}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sign Out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleAuthAction}
+            className="h-9 text-[var(--color-text-primary)] hover:bg-[var(--color-main-panel)]"
+          >
+            <LogIn className="mr-2 h-4 w-4" />
+            Sign In
+          </Button>
+        )}
       </div>
     </header>
   );

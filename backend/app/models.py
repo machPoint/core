@@ -237,6 +237,8 @@ class AIFeedbackRequest(BaseModel):
 
 class AIFeedbackResponse(BaseModel):
     """Response from AI feedback"""
+    model_config = {"protected_namespaces": ()}
+    
     feedback: str = Field(..., description="Generated feedback")
     model_used: str = Field(..., description="AI model used")
     timestamp: datetime = Field(..., description="Response timestamp")

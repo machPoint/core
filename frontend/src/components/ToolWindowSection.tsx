@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import RequirementDetailModal from "./RequirementDetailModal";
+import { useDataMode } from "@/contexts/DataModeContext";
+import { generateFakeJamaItems } from "@/lib/fakeDataGenerators";
 
 interface ToolItem {
   id: string;
@@ -86,12 +88,51 @@ export default function ToolWindowSection() {
   const [selectedRequirement, setSelectedRequirement] = useState<ToolItem | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
+  const { dataMode, isUsingFakeData } = useDataMode();
+
   // Function to fetch requirements from API
-  const fetchRequirements = async (searchTerm: string = "", category: string = "", reset: boolean = false) => {
+  const fetchRequirements = useCallback(async (searchTerm: string = "", category: string = "", reset: boolean = false) => {
     try {
       setLoading(true);
       setError(null);
       
+      // Use fake data if not in real mode
+      if (isUsingFakeData) {
+        const fakeItems = generateFakeJamaItems(50);
+        const transformedItems = fakeItems.map(item => ({
+          id: item.id,
+          title: item.name,
+          type: item.item_type === 'requirement' ? 'requirement' as const : 'verification' as const,
+          status: item.status === 'approved' ? 'completed' as const : 
+                  item.status === 'draft' ? 'pending' as const : 'active' as const,
+          lastUpdated: new Date(item.modified_date).toLocaleDateString(),
+          owner: item.modified_by,
+          tags: [item.fields.priority || 'medium', item.fields.safety_level || 'DAL-C'],
+          category: item.item_type
+        }));
+        
+        // Apply search filter
+        let filtered = transformedItems;
+        if (searchTerm) {
+          filtered = filtered.filter(item => 
+            item.title.toLowerCase().includes(searchTerm.toLowerCase())
+          );
+        }
+        
+        if (reset) {
+          setItems(filtered);
+          setPage(0);
+        } else {
+          setItems(prev => [...prev, ...filtered]);
+        }
+        
+        setTotal(filtered.length);
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
+      
+      // Real mode - fetch from API
       const params = new URLSearchParams({
         limit: "50",
         offset: reset ? "0" : (page * 50).toString(),
@@ -119,23 +160,36 @@ export default function ToolWindowSection() {
       
     } catch (err) {
       console.error('Error fetching requirements:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load requirements');
+      setError(err instanceof Error ? err.message : 'Cannot connect to data engine: ' + (err instanceof Error ? err.message : 'fetch failed'));
       
-      // Fallback to mock data on error
+      // Fallback to fake data on error
+      const fakeItems = generateFakeJamaItems(50);
+      const transformedItems = fakeItems.map(item => ({
+        id: item.id,
+        title: item.name,
+        type: item.item_type === 'requirement' ? 'requirement' as const : 'verification' as const,
+        status: item.status === 'approved' ? 'completed' as const : 
+                item.status === 'draft' ? 'pending' as const : 'active' as const,
+        lastUpdated: new Date(item.modified_date).toLocaleDateString(),
+        owner: item.modified_by,
+        tags: [item.fields.priority || 'medium', item.fields.safety_level || 'DAL-C'],
+        category: item.item_type
+      }));
+      
       if (reset) {
-        setItems(mockItems);
-        setTotal(mockItems.length);
+        setItems(transformedItems);
+        setTotal(transformedItems.length);
         setHasMore(false);
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [isUsingFakeData, page]);
 
   // Initial load and search/filter changes
   useEffect(() => {
     fetchRequirements(searchQuery, filterType, true);
-  }, [searchQuery, filterType]);
+  }, [searchQuery, filterType, fetchRequirements]);
 
   // Items are already filtered by API, no need for additional frontend filtering
   const filteredItems = items;
