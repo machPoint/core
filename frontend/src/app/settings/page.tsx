@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Save, RotateCcw, Sparkles, Zap, Target } from "lucide-react";
+import { ArrowLeft, Save, RotateCcw, Sparkles, Zap, Target, Key, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -45,6 +45,34 @@ export default function SettingsPage() {
   const [pushNotifications, setPushNotifications] = useState(true);
   const [pulseUpdates, setPulseUpdates] = useState(true);
   const [taskReminders, setTaskReminders] = useState(true);
+  
+  // API Configuration
+  const [openaiApiKey, setOpenaiApiKey] = useState("");
+  const [openaiModel, setOpenaiModel] = useState("gpt-4o");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+
+  // Load existing settings on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const response = await fetch('/api/settings');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.hasApiKey) {
+            setOpenaiApiKey(data.openaiApiKey); // This will be masked
+          }
+          setOpenaiModel(data.openaiModel || 'gpt-4o');
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error);
+      } finally {
+        setIsLoadingSettings(false);
+      }
+    };
+    loadSettings();
+  }, []);
 
   const domains = [
     { id: "interfaces", label: "Interfaces", icon: "🔌" },
@@ -94,8 +122,39 @@ export default function SettingsPage() {
   };
 
   const handleSave = async () => {
-    // TODO: Call backend API to save settings
-    toast.success("Settings saved successfully");
+    setIsSaving(true);
+    try {
+      // Save API configuration if provided
+      if (openaiApiKey && !openaiApiKey.startsWith('sk-...')) {
+        const response = await fetch('/api/settings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            openaiApiKey,
+            openaiModel,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to save settings');
+        }
+
+        toast.success("API settings saved successfully! Restart the app to apply changes.");
+      } else {
+        toast.success("Settings saved successfully");
+      }
+      
+      // TODO: Save other settings (AI prompts, display, notifications) to backend
+      
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to save settings');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleReset = () => {
@@ -131,13 +190,13 @@ export default function SettingsPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleReset}>
+              <Button variant="outline" onClick={handleReset} disabled={isSaving}>
                 <RotateCcw className="h-4 w-4 mr-2" />
                 Reset
               </Button>
-              <Button onClick={handleSave}>
+              <Button onClick={handleSave} disabled={isSaving}>
                 <Save className="h-4 w-4 mr-2" />
-                Save Changes
+                {isSaving ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
           </div>
@@ -147,8 +206,12 @@ export default function SettingsPage() {
       {/* Content */}
       <div className="container mx-auto px-6 py-8">
         <Tabs defaultValue="general" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
+          <TabsList className="grid w-full grid-cols-5 lg:w-[750px]">
             <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="api-config">
+              <Key className="h-4 w-4 mr-2" />
+              API Keys
+            </TabsTrigger>
             <TabsTrigger value="ai-prompts">
               <Sparkles className="h-4 w-4 mr-2" />
               AI Prompts
@@ -209,6 +272,100 @@ export default function SettingsPage() {
                       <SelectItem value="de">German</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* API Configuration */}
+          <TabsContent value="api-config" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="h-5 w-5" />
+                  OpenAI API Configuration
+                </CardTitle>
+                <CardDescription>
+                  Configure your OpenAI API key for AI-powered features. Your key is stored securely and never shared.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="openaiApiKey">OpenAI API Key</Label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        id="openaiApiKey"
+                        type={showApiKey ? "text" : "password"}
+                        value={openaiApiKey}
+                        onChange={(e) => setOpenaiApiKey(e.target.value)}
+                        placeholder="sk-proj-..."
+                        className="pr-10"
+                        disabled={isLoadingSettings}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        disabled={isLoadingSettings}
+                      >
+                        {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {openaiApiKey.startsWith('sk-...') ? (
+                      <>Existing key is masked for security. Enter a new key to update it.</>
+                    ) : (
+                      <>
+                        Get your API key from{" "}
+                        <a
+                          href="https://platform.openai.com/api-keys"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          OpenAI Platform
+                        </a>
+                      </>
+                    )}
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="openaiModel">Model</Label>
+                  <Select value={openaiModel} onValueChange={setOpenaiModel}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gpt-4o">GPT-4o (Recommended)</SelectItem>
+                      <SelectItem value="gpt-4o-mini">GPT-4o Mini (Faster, cheaper)</SelectItem>
+                      <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
+                      <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo (Budget)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Choose the model that best fits your needs and budget
+                  </p>
+                </div>
+
+                <div className="rounded-lg bg-muted p-4 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="mt-0.5">Info</Badge>
+                    <div className="text-sm space-y-1">
+                      <p className="font-medium">Security Notice</p>
+                      <p className="text-muted-foreground">
+                        Your API key will be stored in a <code className="bg-background px-1 py-0.5 rounded">.env</code> file
+                        on your local machine. This file is automatically excluded from version control via <code className="bg-background px-1 py-0.5 rounded">.gitignore</code>.
+                      </p>
+                      <p className="text-muted-foreground mt-2">
+                        Never commit your <code className="bg-background px-1 py-0.5 rounded">.env</code> file to Git or share your API key publicly.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
